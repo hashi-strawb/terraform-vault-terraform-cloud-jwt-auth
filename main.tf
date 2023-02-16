@@ -1,22 +1,22 @@
-# TODO: When we convert this into a module, use the create/find pattern we've established here:
+# TODO: Use the create/find pattern we've established here:
 # https://github.com/hashi-strawb/terraform-aws-tfc-dynamic-creds-provider/blob/main/main.tf
-
 
 # TODO: optionally separate plan and apply roles
 
+# TODO: Add support for child namespaces
+
 resource "vault_jwt_auth_backend" "tfc" {
-  # TODO: VAR
-  description = "JWT Auth for Terraform Cloud"
-  # TODO: VAR
-  path = "tfc"
-  # TODO: VAR
-  oidc_discovery_url = "https://app.terraform.io"
-  # TODO: VAR
-  bound_issuer = "https://app.terraform.io"
+  description        = var.vault.auth_description
+  path               = var.vault.auth_path
+  oidc_discovery_url = var.vault.auth_oidc_discovery_url
+  bound_issuer       = var.vault.auth_bound_issuer
 }
 
 resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
-  for_each = { for r in var.tfc_roles : "${var.tfc_org}_${r.workspace_name}" => r }
+  for_each = {
+    for r in var.roles :
+    "${var.terraform.org}_${r.workspace_name}" => r
+  }
 
   backend = vault_jwt_auth_backend.tfc.path
 
@@ -28,7 +28,12 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
 
 
   bound_claims = {
-    "sub" = "organization:${var.tfc_org}:project:${each.value.project_name}:workspace:${each.value.workspace_name}:run_phase:*"
+    "sub" = join(":", [
+      "organization:${var.terraform.org}",
+      "project:${each.value.project_name}",
+      "workspace:${each.value.workspace_name}",
+      "run_phase:*",
+    ])
   }
   user_claim = each.value.user_claim
   role_type  = each.value.role_type
@@ -37,11 +42,11 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
 
 data "tfe_workspace_ids" "all" {
   names        = ["*"]
-  organization = var.tfc_org
+  organization = var.terraform.org
 }
 
 resource "tfe_variable" "tfc_workspace_vault_provider_auth" {
-  for_each     = toset([for r in var.tfc_roles : r.workspace_name])
+  for_each     = toset([for r in var.roles : r.workspace_name])
   key          = "TFC_VAULT_PROVIDER_AUTH"
   value        = true
   category     = "env"
@@ -49,24 +54,23 @@ resource "tfe_variable" "tfc_workspace_vault_provider_auth" {
 }
 
 resource "tfe_variable" "tfc_workspace_tfc_vault_addr" {
-  for_each = toset([for r in var.tfc_roles : r.workspace_name])
-  key      = "TFC_VAULT_ADDR"
-  # TODO: VAR
-  value        = "https://vault.lmhd.me/"
+  for_each     = toset([for r in var.roles : r.workspace_name])
+  key          = "TFC_VAULT_ADDR"
+  value        = var.vault.addr
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
 }
 
 resource "tfe_variable" "tfc_workspace_vault_run_role" {
-  for_each     = toset([for r in var.tfc_roles : r.workspace_name])
+  for_each     = toset([for r in var.roles : r.workspace_name])
   key          = "TFC_VAULT_RUN_ROLE"
-  value        = "${var.tfc_org}_${each.key}"
+  value        = "${var.terraform.org}_${each.key}"
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
 }
 
 resource "tfe_variable" "tfc_workspace_vault_auth_path" {
-  for_each     = toset([for r in var.tfc_roles : r.workspace_name])
+  for_each     = toset([for r in var.roles : r.workspace_name])
   key          = "TFC_VAULT_AUTH_PATH"
   value        = vault_jwt_auth_backend.tfc.path
   category     = "env"
@@ -74,10 +78,9 @@ resource "tfe_variable" "tfc_workspace_vault_auth_path" {
 }
 
 resource "tfe_variable" "tfc_workspace_vault_addr" {
-  for_each = toset([for r in var.tfc_roles : r.workspace_name])
-  key      = "VAULT_ADDR"
-  # TODO: VAR
-  value        = "https://vault.lmhd.me/"
+  for_each     = toset([for r in var.roles : r.workspace_name])
+  key          = "VAULT_ADDR"
+  value        = var.vault.addr
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
 }
