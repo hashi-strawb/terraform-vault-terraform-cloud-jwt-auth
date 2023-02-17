@@ -1,15 +1,35 @@
+terraform {
+  required_providers {
+    vault = {
+      source = "hashicorp/vault"
+
+      # Needed for https://github.com/hashicorp/terraform-provider-vault/pull/1479
+      version = ">= 3.7.0"
+    }
+
+    tfe = {
+      source = "hashicorp/tfe"
+
+      # Untested, but this seems like the minimum version that should work, based on:
+      # https://github.com/hashicorp/terraform-provider-tfe/pull/698
+      version = ">= 0.40.0"
+    }
+  }
+}
+
+
+
 # TODO: Use the create/find pattern we've established here:
 # https://github.com/hashi-strawb/terraform-aws-tfc-dynamic-creds-provider/blob/main/main.tf
 
 # TODO: optionally separate plan and apply roles
-
-# TODO: Add support for child namespaces
 
 resource "vault_jwt_auth_backend" "tfc" {
   description        = var.vault.auth_description
   path               = var.vault.auth_path
   oidc_discovery_url = var.vault.auth_oidc_discovery_url
   bound_issuer       = var.vault.auth_bound_issuer
+  namespace          = var.vault.namespace
 }
 
 resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
@@ -38,6 +58,7 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
   user_claim = each.value.user_claim
   role_type  = each.value.role_type
   token_ttl  = each.value.token_ttl
+  namespace  = var.vault.namespace
 }
 
 data "tfe_workspace_ids" "all" {
@@ -51,6 +72,8 @@ resource "tfe_variable" "tfc_workspace_vault_provider_auth" {
   value        = true
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+
+  description = "Use TFC Dynamic Credentials to authenticate with Vault"
 }
 
 resource "tfe_variable" "tfc_workspace_tfc_vault_addr" {
@@ -59,6 +82,19 @@ resource "tfe_variable" "tfc_workspace_tfc_vault_addr" {
   value        = var.vault.addr
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+
+  description = "Vault Address for TFC to use when authenticating with Vault"
+}
+resource "tfe_variable" "tfc_workspace_tfc_vault_namespace" {
+  for_each = toset(var.vault.namespace != null ?
+    [for r in var.roles : r.workspace_name] : []
+  )
+  key          = "TFC_VAULT_NAMESPACE"
+  value        = var.vault.namespace
+  category     = "env"
+  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+
+  description = "Vault Namespace for TFC to use when authenticating with Vault"
 }
 
 resource "tfe_variable" "tfc_workspace_vault_run_role" {
@@ -67,6 +103,8 @@ resource "tfe_variable" "tfc_workspace_vault_run_role" {
   value        = "${var.terraform.org}_${each.key}"
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+
+  description = "Role to use in the Vault auth method"
 }
 
 resource "tfe_variable" "tfc_workspace_vault_auth_path" {
@@ -75,6 +113,8 @@ resource "tfe_variable" "tfc_workspace_vault_auth_path" {
   value        = vault_jwt_auth_backend.tfc.path
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+
+  description = "Path to use for the Vault auth method"
 }
 
 resource "tfe_variable" "tfc_workspace_vault_addr" {
@@ -83,5 +123,17 @@ resource "tfe_variable" "tfc_workspace_vault_addr" {
   value        = var.vault.addr
   category     = "env"
   workspace_id = data.tfe_workspace_ids.all.ids[each.key]
-}
 
+  description = "Vault Address for the Vault Terraform Provider to use when running TF Plan/Apply"
+}
+resource "tfe_variable" "tfc_workspace_vault_namespace" {
+  for_each = toset(var.vault.namespace != null ?
+    [for r in var.roles : r.workspace_name] : []
+  )
+  key          = "VAULT_NAMESPACE"
+  value        = var.vault.namespace
+  category     = "env"
+  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+
+  description = "Vault Namespace for the Vault Terraform Provide to use when running TF Plan/Apply"
+}

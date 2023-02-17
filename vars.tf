@@ -6,7 +6,8 @@ variable "terraform" {
 
 variable "vault" {
   type = object({
-    addr = string
+    addr      = string
+    namespace = optional(string)
 
     auth_path               = optional(string, "tfc")
     auth_description        = optional(string, "JWT Auth for Terraform Cloud")
