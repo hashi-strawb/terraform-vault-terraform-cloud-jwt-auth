@@ -29,7 +29,6 @@ resource "vault_jwt_auth_backend" "tfc" {
   path               = var.vault.auth_path
   oidc_discovery_url = var.vault.auth_oidc_discovery_url
   bound_issuer       = var.vault.auth_bound_issuer
-  namespace          = var.vault.namespace
 }
 
 resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
@@ -58,7 +57,6 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
   user_claim = each.value.user_claim
   role_type  = each.value.role_type
   token_ttl  = each.value.token_ttl
-  namespace  = var.vault.namespace
 }
 
 data "tfe_workspace_ids" "all" {
