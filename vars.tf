@@ -1,7 +1,14 @@
 variable "terraform" {
   type = object({
-    org = string
+    org   = string
+    alias = optional(string)
   })
+}
+
+locals {
+  is_alias                 = var.terraform.alias != null
+  alias_suffix             = var.terraform.alias != null ? "_${var.terraform.alias}" : ""
+  alias_description_suffix = var.terraform.alias != null ? " with provider alias ${var.terraform.alias}" : ""
 }
 
 variable "vault" {
@@ -13,6 +20,8 @@ variable "vault" {
     auth_description        = optional(string, "JWT Auth for Terraform Cloud")
     auth_oidc_discovery_url = optional(string, "https://app.terraform.io")
     auth_bound_issuer       = optional(string, "https://app.terraform.io")
+
+    create_roles = optional(bool, true)
   })
 }
 
