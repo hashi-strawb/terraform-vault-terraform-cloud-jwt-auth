@@ -46,6 +46,10 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
     "${var.terraform.org}_${r.workspace_name}" => r
   } : {}
 
+  depends_on = [
+    vault_jwt_auth_backend.tfc
+  ]
+
   backend = var.vault.auth_path
 
   role_name      = each.key
