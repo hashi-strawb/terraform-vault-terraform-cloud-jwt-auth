@@ -38,6 +38,8 @@ variable "roles" {
     user_claim        = optional(string, "terraform_full_workspace")
     role_type         = optional(string, "jwt")
     token_ttl         = optional(number, 5 * 60)
+
+    only_tfc_env_vars = optional(bool, false)
   }))
 
   default = []

@@ -155,7 +155,12 @@ resource "tfe_variable" "tfc_workspace_vault_auth_path" {
 resource "tfe_variable" "tfc_workspace_vault_addr" {
   // For aliases, we don't need to set VAULT_ADDR, as it's unused
   for_each = toset(
-    var.terraform.create_variables ? local.is_alias ? [] : [for r in var.roles : r.workspace_name] : []
+    var.terraform.create_variables ? (
+      local.is_alias ? [] : [
+        for r in var.roles : r.workspace_name
+        if r.only_tfc_env_vars != true
+      ]
+    ) : []
   )
 
   key          = "VAULT_ADDR"
@@ -171,7 +176,10 @@ resource "tfe_variable" "tfc_workspace_vault_namespace" {
   for_each = toset(
     var.terraform.create_variables ? (
       local.is_alias ? [] : var.vault.namespace != null ?
-      [for r in var.roles : r.workspace_name] : []
+      [
+        for r in var.roles : r.workspace_name
+        if r.only_tfc_env_vars != true
+      ] : []
     ) : []
   )
 
