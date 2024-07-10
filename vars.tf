@@ -2,6 +2,8 @@ variable "terraform" {
   type = object({
     org   = string
     alias = optional(string)
+
+    create_variables = optional(bool, true)
   })
 }
 

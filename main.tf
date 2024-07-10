@@ -17,6 +17,9 @@ terraform {
   }
 }
 
+// TODO: to make this easier... split TFC Vars and Vault Roles into separate submodules
+// (this should make the "if VAR, then CREATE" logic easier to manage)
+
 
 
 # TODO: Use the create/find pattern we've established here:
@@ -72,81 +75,106 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
 #
 
 data "tfe_workspace_ids" "all" {
+  count = var.terraform.create_variables ? 1 : 0
+
   names        = ["*"]
   organization = var.terraform.org
 }
 
 resource "tfe_variable" "tfc_workspace_vault_provider_auth" {
-  for_each     = toset([for r in var.roles : r.workspace_name])
+  for_each = toset(
+    var.terraform.create_variables ? ([for r in var.roles : r.workspace_name]) : []
+  )
+
   key          = "TFC_VAULT_PROVIDER_AUTH${local.alias_suffix}"
   value        = true
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Use TFC Dynamic Credentials to authenticate with Vault${local.alias_description_suffix}"
 }
 
 resource "tfe_variable" "tfc_workspace_tfc_vault_addr" {
-  for_each     = toset([for r in var.roles : r.workspace_name])
+  for_each = toset(
+    var.terraform.create_variables ? ([for r in var.roles : r.workspace_name]) : []
+  )
+
   key          = "TFC_VAULT_ADDR${local.alias_suffix}"
   value        = var.vault.addr
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Vault Address for TFC to use when authenticating with Vault${local.alias_description_suffix}"
 }
 resource "tfe_variable" "tfc_workspace_tfc_vault_namespace" {
-  for_each = toset(var.vault.namespace != null ?
-    [for r in var.roles : r.workspace_name] : []
+  for_each = toset(
+    var.terraform.create_variables ? (
+      var.vault.namespace != null ?
+      [for r in var.roles : r.workspace_name] : []
+    ) : []
   )
+
   key          = "TFC_VAULT_NAMESPACE${local.alias_suffix}"
   value        = var.vault.namespace
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Vault Namespace for TFC to use when authenticating with Vault${local.alias_description_suffix}"
 }
 
 resource "tfe_variable" "tfc_workspace_vault_run_role" {
-  for_each     = toset([for r in var.roles : r.workspace_name])
+  for_each = toset(
+    var.terraform.create_variables ? [for r in var.roles : r.workspace_name] : []
+  )
+
   key          = "TFC_VAULT_RUN_ROLE${local.alias_suffix}"
   value        = "${var.terraform.org}_${each.key}"
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Role to use in the Vault auth method${local.alias_description_suffix}"
 }
 
 resource "tfe_variable" "tfc_workspace_vault_auth_path" {
-  for_each     = toset([for r in var.roles : r.workspace_name])
+  for_each = toset(
+    var.terraform.create_variables ? [for r in var.roles : r.workspace_name] : []
+  )
+
   key          = "TFC_VAULT_AUTH_PATH${local.alias_suffix}"
   value        = var.vault.auth_path
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Path to use for the Vault auth method${local.alias_description_suffix}"
 }
 
 resource "tfe_variable" "tfc_workspace_vault_addr" {
   // For aliases, we don't need to set VAULT_ADDR, as it's unused
-  for_each     = local.is_alias ? [] : toset([for r in var.roles : r.workspace_name])
+  for_each = toset(
+    var.terraform.create_variables ? local.is_alias ? [] : [for r in var.roles : r.workspace_name] : []
+  )
+
   key          = "VAULT_ADDR"
   value        = var.vault.addr
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Vault Address for the Vault Terraform Provider to use when running TF Plan/Apply"
 }
 resource "tfe_variable" "tfc_workspace_vault_namespace" {
   // For aliases, we don't need to set VAULT_NAMESPACE, as it's unused
   // and then, we only need to set a namespace if one is defined
-  for_each = local.is_alias ? [] : toset(var.vault.namespace != null ?
-    [for r in var.roles : r.workspace_name] : []
+  for_each = toset(
+    var.terraform.create_variables ? (
+      local.is_alias ? [] : var.vault.namespace != null ?
+      [for r in var.roles : r.workspace_name] : []
+    ) : []
   )
+
   key          = "VAULT_NAMESPACE"
   value        = var.vault.namespace
   category     = "env"
-  workspace_id = data.tfe_workspace_ids.all.ids[each.key]
+  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
 
   description = "Vault Namespace for the Vault Terraform Provide to use when running TF Plan/Apply"
 }
