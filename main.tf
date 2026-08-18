@@ -81,7 +81,7 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
 data "tfe_workspace_ids" "all" {
   count = var.terraform.create_variables ? 1 : 0
 
-  names        = ["*"]
+  names        = [for r in var.roles : r.workspace_name]
   organization = var.terraform.org
 }
 
