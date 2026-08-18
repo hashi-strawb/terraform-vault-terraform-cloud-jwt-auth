@@ -10,9 +10,9 @@ terraform {
     tfe = {
       source = "hashicorp/tfe"
 
-      # Untested, but this seems like the minimum version that should work, based on:
-      # https://github.com/hashicorp/terraform-provider-tfe/pull/698
-      version = ">= 0.40.0"
+      # >= 0.40.0 for dynamic credentials support
+      # >= 0.59.0 for tfe_workspace data source (replaces deprecated tfe_workspace_ids)
+      version = ">= 0.59.0"
     }
   }
 }
@@ -78,10 +78,12 @@ resource "vault_jwt_auth_backend_role" "tfc_workspaces" {
 # TFC
 #
 
-data "tfe_workspace_ids" "all" {
-  count = var.terraform.create_variables ? 1 : 0
+data "tfe_workspace" "all" {
+  for_each = toset(
+    var.terraform.create_variables ? [for r in var.roles : r.workspace_name] : []
+  )
 
-  names        = [for r in var.roles : r.workspace_name]
+  name         = each.key
   organization = var.terraform.org
 }
 
@@ -93,7 +95,7 @@ resource "tfe_variable" "tfc_workspace_vault_provider_auth" {
   key          = "TFC_VAULT_PROVIDER_AUTH${local.alias_suffix}"
   value        = true
   category     = "env"
-  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
+  workspace_id = data.tfe_workspace.all[each.key].id
 
   description = "Use TFC Dynamic Credentials to authenticate with Vault${local.alias_description_suffix}"
 }
@@ -106,7 +108,7 @@ resource "tfe_variable" "tfc_workspace_tfc_vault_addr" {
   key          = "TFC_VAULT_ADDR${local.alias_suffix}"
   value        = var.vault.addr
   category     = "env"
-  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
+  workspace_id = data.tfe_workspace.all[each.key].id
 
   description = "Vault Address for TFC to use when authenticating with Vault${local.alias_description_suffix}"
 }
@@ -121,7 +123,7 @@ resource "tfe_variable" "tfc_workspace_tfc_vault_namespace" {
   key          = "TFC_VAULT_NAMESPACE${local.alias_suffix}"
   value        = var.vault.namespace
   category     = "env"
-  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
+  workspace_id = data.tfe_workspace.all[each.key].id
 
   description = "Vault Namespace for TFC to use when authenticating with Vault${local.alias_description_suffix}"
 }
@@ -134,7 +136,7 @@ resource "tfe_variable" "tfc_workspace_vault_run_role" {
   key          = "TFC_VAULT_RUN_ROLE${local.alias_suffix}"
   value        = "${var.terraform.org}_${each.key}"
   category     = "env"
-  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
+  workspace_id = data.tfe_workspace.all[each.key].id
 
   description = "Role to use in the Vault auth method${local.alias_description_suffix}"
 }
@@ -147,7 +149,7 @@ resource "tfe_variable" "tfc_workspace_vault_auth_path" {
   key          = "TFC_VAULT_AUTH_PATH${local.alias_suffix}"
   value        = var.vault.auth_path
   category     = "env"
-  workspace_id = var.terraform.create_variables ? one(data.tfe_workspace_ids.all).ids[each.key] : ""
+  workspace_id = data.tfe_workspace.all[each.key].id
 
   description = "Path to use for the Vault auth method${local.alias_description_suffix}"
 }
