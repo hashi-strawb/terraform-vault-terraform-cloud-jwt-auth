@@ -44,3 +44,14 @@ variable "roles" {
 
   default = []
 }
+
+variable "tfe_variable_wo_version" {
+  description = "Version for write-only TFE variable values. Increment this to apply changes to generated TFE variable values."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.tfe_variable_wo_version >= 1 && floor(var.tfe_variable_wo_version) == var.tfe_variable_wo_version
+    error_message = "The TFE variable write-only version must be a positive integer."
+  }
+}

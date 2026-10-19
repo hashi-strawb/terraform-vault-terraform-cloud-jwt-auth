@@ -33,6 +33,17 @@ module "tfc-auth" {
 
 ```
 
+The module stores generated TFE variable values using the provider's write-only
+attribute. Increment `tfe_variable_wo_version` whenever a generated variable
+value changes so Terraform applies the new value:
+
+```hcl
+module "tfc-auth" {
+  # ...
+  tfe_variable_wo_version = 2
+}
+```
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
@@ -42,8 +53,8 @@ No requirements.
 
 | Name | Version |
 |------|---------|
-| <a name="provider_tfe"></a> [tfe](#provider\_tfe) | n/a |
-| <a name="provider_vault"></a> [vault](#provider\_vault) | n/a |
+| <a name="provider_tfe"></a> [tfe](#provider\_tfe) | >= 0.80.0 |
+| <a name="provider_vault"></a> [vault](#provider\_vault) | >= 3.7.0 |
 
 ## Modules
 
@@ -67,6 +78,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_roles"></a> [roles](#input\_roles) | n/a | <pre>list(object({<br>    workspace_name = string<br>    token_policies = list(string)<br><br>    project_name      = optional(string, "*") # Default to whatever project<br>    bound_audiences   = optional(list(string), ["vault.workload.identity"])<br>    bound_claims_type = optional(string, "glob")<br>    user_claim        = optional(string, "terraform_full_workspace")<br>    role_type         = optional(string, "jwt")<br>    token_ttl         = optional(number, 5 * 60)<br>  }))</pre> | `[]` | no |
+| <a name="input_tfe_variable_wo_version"></a> [tfe\_variable\_wo\_version](#input\_tfe\_variable\_wo\_version) | Version for write-only TFE variable values. Increment this to apply changes to generated TFE variable values. | `number` | `1` | no |
 | <a name="input_terraform"></a> [terraform](#input\_terraform) | n/a | <pre>object({<br>    org = string<br>  })</pre> | n/a | yes |
 | <a name="input_vault"></a> [vault](#input\_vault) | n/a | <pre>object({<br>    addr = string<br><br>    auth_path               = optional(string, "tfc")<br>    auth_description        = optional(string, "JWT Auth for Terraform Cloud")<br>    auth_oidc_discovery_url = optional(string, "https://app.terraform.io")<br>    auth_bound_issuer       = optional(string, "https://app.terraform.io")<br>  })</pre> | n/a | yes |
 
